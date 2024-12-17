@@ -17,6 +17,7 @@ const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
 const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction } = require('./structures');
 const NoAuth = require('./authStrategies/NoAuth');
+const pie = require('puppeteer-in-electron');
 
 /**
  * Starting point for interacting with the WhatsApp Web API
@@ -60,7 +61,7 @@ const NoAuth = require('./authStrategies/NoAuth');
  * @fires Client#vote_update
  */
 class Client extends EventEmitter {
-    constructor(options = {}) {
+    constructor(puppeteerBrowser, browserWindow, options = {}) {
         super();
 
         this.options = Util.mergeDefault(DefaultOptions, options);
@@ -76,11 +77,11 @@ class Client extends EventEmitter {
         /**
          * @type {puppeteer.Browser}
          */
-        this.pupBrowser = null;
+        this.pupBrowser = puppeteerBrowser;
         /**
          * @type {puppeteer.Page}
          */
-        this.pupPage = null;
+        this.browserWindow = browserWindow;
 
         this.currentIndexHtml = null;
         this.lastLoggedOut = false;
@@ -275,36 +276,38 @@ class Client extends EventEmitter {
      */
     async initialize() {
 
-        let 
-            /**
-             * @type {puppeteer.Browser}
-             */
-            browser, 
-            /**
-             * @type {puppeteer.Page}
-             */
-            page;
+        // let 
+        //     /**
+        //      * @type {puppeteer.Browser}
+        //      */
+        //     browser, 
+        //     /**
+        //      * @type {puppeteer.Page}
+        //      */
+        //     page;
 
-        browser = null;
-        page = null;
+        // browser = null;
+        // page = null;
 
-        await this.authStrategy.beforeBrowserInitialized();
+        // await this.authStrategy.beforeBrowserInitialized();
 
-        const puppeteerOpts = this.options.puppeteer;
-        if (puppeteerOpts && puppeteerOpts.browserWSEndpoint) {
-            browser = await puppeteer.connect(puppeteerOpts);
-            page = await browser.newPage();
-        } else {
-            const browserArgs = [...(puppeteerOpts.args || [])];
-            if(!browserArgs.find(arg => arg.includes('--user-agent'))) {
-                browserArgs.push(`--user-agent=${this.options.userAgent}`);
-            }
-            // navigator.webdriver fix
-            browserArgs.push('--disable-blink-features=AutomationControlled');
+        // const puppeteerOpts = this.options.puppeteer;
+        // if (puppeteerOpts && puppeteerOpts.browserWSEndpoint) {
+        //     browser = await puppeteer.connect(puppeteerOpts);
+        //     page = await browser.newPage();
+        // } else {
+        //     const browserArgs = [...(puppeteerOpts.args || [])];
+        //     if(!browserArgs.find(arg => arg.includes('--user-agent'))) {
+        //         browserArgs.push(`--user-agent=${this.options.userAgent}`);
+        //     }
+        //     // navigator.webdriver fix
+        //     browserArgs.push('--disable-blink-features=AutomationControlled');
 
-            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs});
-            page = (await browser.pages())[0];
-        }
+        //     browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs});
+        //     page = (await browser.pages())[0];
+        // }
+
+        let page = await pie.getPage(this.pupBrowser, this.browserWindow);
 
         if (this.options.proxyAuthentication !== undefined) {
             await page.authenticate(this.options.proxyAuthentication);
@@ -313,7 +316,7 @@ class Client extends EventEmitter {
         await page.setUserAgent(this.options.userAgent);
         if (this.options.bypassCSP) await page.setBypassCSP(true);
 
-        this.pupBrowser = browser;
+        // this.pupBrowser = browser;
         this.pupPage = page;
 
         await this.authStrategy.afterBrowserInitialized();
@@ -807,15 +810,15 @@ class Client extends EventEmitter {
                 return window.Store.AppState.logout();
             }
         });
-        await this.pupBrowser.close();
+        // await this.pupBrowser.close();
         
-        let maxDelay = 0;
-        while (this.pupBrowser.isConnected() && (maxDelay < 10)) { // waits a maximum of 1 second before calling the AuthStrategy
-            await new Promise(resolve => setTimeout(resolve, 100));
-            maxDelay++; 
-        }
+        // let maxDelay = 0;
+        // while (this.pupBrowser.isConnected() && (maxDelay < 10)) { // waits a maximum of 1 second before calling the AuthStrategy
+        //     await new Promise(resolve => setTimeout(resolve, 100));
+        //     maxDelay++; 
+        // }
         
-        await this.authStrategy.logout();
+        // await this.authStrategy.logout();
     }
 
     /**
